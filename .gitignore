@@ -1,0 +1,6 @@
+release-assets/
+*.zip
+*.sqlite*
+*.db
+.env*
+docs/
