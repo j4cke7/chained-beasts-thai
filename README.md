@@ -1,8 +1,10 @@
-# Chained Beasts ภาษาไทย
+# Chained Beasts ภาษาไทย | Thai Translation Mod
 
 [![Chained Beasts](https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3569420/be237edbd1bdbcf361d7b315d70e89fea3b5262a/header.jpg?t=1792711697)](https://store.steampowered.com/app/3569420/Chained_Beasts/)
 
 ม็อดภาษาไทยสำหรับ **Chained Beasts บน Steam Windows build 26152147** เวอร์ชันม็อด 1.0.0
+
+A Thai translation mod for Chained Beasts on Steam Windows, with Thai fonts and installation and uninstall instructions.
 
 ## [ดาวน์โหลดม็อดภาษาไทย (.zip)](https://github.com/j4cke7/chained-beasts-thai/releases/download/v1.0.0-build26152147/Chained-Beasts-Thai-replace-en-26152147.zip)
 
