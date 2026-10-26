@@ -4,3 +4,4 @@ release-assets/
 *.db
 .env*
 docs/
+.release-notes.md

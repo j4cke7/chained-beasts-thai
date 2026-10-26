@@ -7,9 +7,9 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
-$copyBuffer = New-Object byte[] 1048576
 $maximumAssetBytes = 160 * 1024 * 1024
-
+$Game = @{Title='Chained Beasts'; Process='ChainedBeasts'; AppId='3569420'; Build='26152147'; AnyLocation=$false}
+# Shared installer steps. The game part sets $Game (Title, Process, AppId, Build, AnyLocation), $GameRoot and $maximumAssetBytes.
 function Assert-Hash($Value) {
     if ($Value -isnot [string] -or $Value -cnotmatch '^[0-9a-f]{64}$') { throw 'Invalid SHA-256 format.' }
 }
@@ -30,6 +30,7 @@ function Assert-Keys($Object, [string[]]$Keys) {
 function Read-Json([string]$Path) {
     if ((Get-Item -LiteralPath $Path).Length -gt 1048576) { throw 'JSON resource bound exceeded.' }
     $raw = [IO.File]::ReadAllText($Path)
+    # ConvertFrom-Json silently keeps the last of duplicate property names, so they are refused first.
     $sets = New-Object 'Collections.Generic.Stack[object]'
     foreach ($token in [regex]::Matches($raw, '"(?:[^"\\]|\\.)*"|[{}]')) {
         if ($token.Value -eq '{') { $sets.Push((New-Object 'Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase))) }
@@ -46,13 +47,16 @@ function Assert-Identity($Identity) {
     Assert-Hash $Identity.sha256
     Assert-PositiveInteger $Identity.size $maximumAssetBytes
 }
-function Assert-File([string]$Path, $Identity) {
-    Assert-SafePath $Path
-    if (!(Test-Path -LiteralPath $Path -PathType Leaf) -or (Get-Item -LiteralPath $Path).Length -ne $Identity.size -or (Get-Sha $Path) -cne $Identity.sha256) {
-        throw "File missing or corrupt: $Path"
+function Assert-Previous($Previous, [string]$PinnedJson) {
+    # Assign before @(): PowerShell 5.1 emits a parsed JSON array as one object, so @(ConvertFrom-Json '[]') has one element.
+    $pinned = ConvertFrom-Json $PinnedJson
+    $pinned = @($pinned)
+    $Previous = @($Previous)
+    if ($Previous.Count -ne $pinned.Count) { throw 'Unsupported previous output identity.' }
+    for ($i = 0; $i -lt $pinned.Count; $i++) {
+        if ($Previous[$i].sha256 -cne $pinned[$i].sha256 -or $Previous[$i].size -ne $pinned[$i].size) { throw 'Unsupported previous output identity.' }
     }
 }
-
 function Assert-SafePath([string]$Path) {
     $itemPath = [IO.Path]::GetFullPath($Path)
     while ($itemPath) {
@@ -65,23 +69,83 @@ function Assert-SafePath([string]$Path) {
         $itemPath = $parent
     }
 }
+function Assert-Contained([string]$Root, [string]$Path) {
+    $full = [IO.Path]::GetFullPath($Path)
+    if (!$full.StartsWith($Root + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) { throw 'Path escape refused.' }
+    Assert-SafePath $full
+    return $full
+}
 function Get-Sha([string]$Path) {
     $stream = [IO.File]::OpenRead($Path)
     $hasher = [Security.Cryptography.SHA256]::Create()
     try { return [BitConverter]::ToString($hasher.ComputeHash($stream)).Replace('-','').ToLowerInvariant() }
     finally { $hasher.Dispose(); $stream.Dispose() }
 }
-function Assert-Original([string]$Path) {
-    Assert-File $Path $member.original
+function Get-BytesSha([byte[]]$Bytes) {
+    $hasher = [Security.Cryptography.SHA256]::Create()
+    try { return [BitConverter]::ToString($hasher.ComputeHash($Bytes)).Replace('-','').ToLowerInvariant() }
+    finally { $hasher.Dispose() }
+}
+function Assert-File([string]$Path, $Identity) {
+    Assert-SafePath $Path
+    if (!(Test-Path -LiteralPath $Path -PathType Leaf) -or (Get-Item -LiteralPath $Path).Length -ne $Identity.size -or (Get-Sha $Path) -cne $Identity.sha256) {
+        throw "File missing or corrupt: $Path"
+    }
 }
 function Assert-GameStopped {
-    foreach ($gameProcess in @(Get-Process -Name 'ChainedBeasts' -ErrorAction SilentlyContinue)) {
-        $exePath = $gameProcess.Path
-        if (!$exePath -or [IO.Path]::GetDirectoryName($exePath) -eq $GameRoot) {
-            throw 'Close Chained Beasts before changing files.'
+    foreach ($gameProcess in @(Get-Process -Name $Game.Process -ErrorAction SilentlyContinue)) {
+        # Elevated processes hide their path, so an unknown path counts as this game.
+        if ($Game.AnyLocation -or !$gameProcess.Path -or [IO.Path]::GetDirectoryName($gameProcess.Path) -eq $GameRoot) {
+            throw "Close $($Game.Title) before changing files."
         }
     }
 }
+function Find-SteamGame {
+    $roots = @()
+    foreach ($key in @('HKCU:\Software\Valve\Steam','HKLM:\SOFTWARE\WOW6432Node\Valve\Steam')) {
+        $entry = Get-ItemProperty -LiteralPath $key -ErrorAction SilentlyContinue
+        if ($entry) { foreach ($property in @('SteamPath','InstallPath')) { if ($entry.PSObject.Properties.Name -contains $property) { $roots += $entry.$property } } }
+    }
+    $libraries = @($roots)
+    foreach ($root in $roots) {
+        $file = Join-Path $root 'steamapps\libraryfolders.vdf'
+        if (Test-Path -LiteralPath $file) { foreach ($match in [regex]::Matches([IO.File]::ReadAllText($file), '"path"\s+"([^"]+)"')) { $libraries += $match.Groups[1].Value.Replace('\\','\') } }
+    }
+    $games = @()
+    foreach ($library in @($libraries | Select-Object -Unique)) {
+        $file = Join-Path $library ('steamapps\appmanifest_' + $Game.AppId + '.acf')
+        if (Test-Path -LiteralPath $file) {
+            $match = [regex]::Match([IO.File]::ReadAllText($file), '"installdir"\s+"([^"]+)"')
+            if ($match.Success) { $games += Join-Path (Join-Path $library 'steamapps\common') $match.Groups[1].Value }
+        }
+    }
+    if ($games.Count -ne 1) { throw "Cannot identify one Steam installation. Pass -GameRoot with the $($Game.Title) folder (Steam > Manage > Browse local files)." }
+    return $games[0]
+}
+function Read-SteamBuild {
+    # User decision 2026-10-26: the Steam build label only warns. File hashes decide what may be patched.
+    $library = [IO.Path]::GetDirectoryName([IO.Path]::GetDirectoryName($GameRoot))
+    $label = $null
+    if ($library) {
+        $acf = Join-Path $library ('appmanifest_' + $Game.AppId + '.acf')
+        Assert-SafePath $acf
+        if (Test-Path -LiteralPath $acf -PathType Leaf) {
+            if ((Get-Item -LiteralPath $acf).Length -gt 1048576) { throw 'Steam app manifest bound exceeded.' }
+            $text = [IO.File]::ReadAllText($acf)
+            $apps = [regex]::Matches($text, '"appid"\s+"([^"\r\n]+)"')
+            if ($apps.Count -ne 1 -or $apps[0].Groups[1].Value -cne $Game.AppId) { throw 'Steam app mismatch.' }
+            $builds = [regex]::Matches($text, '"buildid"\s+"([^"\r\n]+)"')
+            if ($builds.Count -eq 1) { $label = $builds[0].Groups[1].Value }
+        }
+    }
+    if ($label -cne $Game.Build) {
+        $seen = if ($label) { "Steam reports build $label" } else { 'Steam build is unknown' }
+        Write-Warning "$seen, not the tested build $($Game.Build). Continuing with file hash checks."
+    }
+    return [pscustomobject]@{Label = $label; Changed = ($null -ne $label -and $label -cne $Game.Build)}
+}
+# One Unity data file patched by a CBDLT001 delta from its verified original backup. Needs installer_core.ps1 and $Action.
+$copyBuffer = New-Object byte[] 1048576
 function Copy-Count($Source, $Destination, [long]$Count) {
     while ($Count -gt 0) {
         $take = [int][Math]::Min($copyBuffer.Length, $Count)
@@ -91,11 +155,11 @@ function Copy-Count($Source, $Destination, [long]$Count) {
         $Count -= $got
     }
 }
-function Expand-Delta([string]$SourcePath, [string]$StagePath) {
+function Expand-Delta([string]$SourcePath, [string]$StagePath, $member, [string]$patchPath) {
     $sourceStream = $null; $patchStream = $null; $writer = $null; $reader = $null
     try {
         $sourceStream = [IO.File]::Open($SourcePath, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
-        $patchStream = [IO.File]::OpenRead($patchPath)
+        $patchStream = [IO.File]::Open($patchPath, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
         $reader = New-Object IO.BinaryReader($patchStream)
         if ([Text.Encoding]::ASCII.GetString($reader.ReadBytes(8)) -ne 'CBDLT001') { throw 'Unsupported delta magic.' }
         $count = $reader.ReadUInt32()
@@ -122,10 +186,103 @@ function Expand-Delta([string]$SourcePath, [string]$StagePath) {
         if ($sourceStream) { $sourceStream.Dispose() }
     }
 }
+function Open-Shared([string]$Path) {
+    return [IO.File]::Open($Path, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
+}
+# $Plan: Target, Backup, Stage, BackupStage, Lock (full paths), Member (original/output/patch), Previous (earlier own outputs),
+# PatchPath, Support (@{path; identity} the mod reads but never writes), OriginalBackup (optional), Suffix (Status/result tag).
+function Invoke-DeltaInstall($Plan) {
+    $target = $Plan.Target; $backup = $Plan.Backup; $stage = $Plan.Stage; $backupStage = $Plan.BackupStage; $member = $Plan.Member
+    foreach ($path in @($target,$backup,$stage,$backupStage,$Plan.Lock)) { Assert-SafePath $path }
+    if (!(Test-Path -LiteralPath $target -PathType Leaf)) { throw 'Game target file missing.' }
+    $name = [IO.Path]::GetFileName($target)
+    $lock = $null; $held = @(); $ownStage = $false; $ownBackupStage = $false
+    try {
+        $held += Open-Shared $Plan.PatchPath
+        $steam = Read-SteamBuild
+        Assert-GameStopped
+        $support = @()
+        foreach ($file in @($Plan.Support)) {
+            $path = Assert-Contained $GameRoot (Join-Path $GameRoot $file.path)
+            $seen = $null
+            if (Test-Path -LiteralPath $path -PathType Leaf) { $held += Open-Shared $path; $seen = Get-Sha $path }
+            $support += [pscustomobject]@{path=$file.path; full=$path; seen=$seen; tested=($seen -ceq $file.identity.sha256 -and (Get-Item -LiteralPath $path).Length -eq $file.identity.size)}
+        }
+        $changed = @($support | Where-Object { !$_.tested } | ForEach-Object { $_.path })
+        if ($changed.Count -and $Action -eq 'Install') { Write-Warning (($changed -join ', ') + ' differs from the tested build. Thai text may misbehave; run Uninstall if it does.') }
+        $targetSha = Get-Sha $target
+        if ($targetSha -ceq $member.original.sha256) { Assert-File $target $member.original; $state = 'original' }
+        elseif ($targetSha -ceq $member.output.sha256) { Assert-File $target $member.output; $state = 'patched' }
+        elseif (@($Plan.Previous | Where-Object { $_.sha256 -ceq $targetSha }).Count) {
+            # An earlier output of this program is replaced only from the verified original backup.
+            Assert-File $target @($Plan.Previous | Where-Object { $_.sha256 -ceq $targetSha })[0]; $state = 'previous'
+        }
+        else { $state = 'updated' }
+        $backupExists = Test-Path -LiteralPath $backup
+        if ($backupExists) { Assert-File $backup $member.original }
+        if ($Action -eq 'Status') { return "State=$state; backup=$backupExists; tested_support=$($changed.Count -eq 0); build=$($Game.Build)$($Plan.Suffix)" }
+        if ($state -eq 'updated' -and !$steam.Changed) { throw "$name is unknown or modified, and Steam does not report a newer build. The Thai backup is kept. Run Steam > Verify integrity of game files, then try again." }
+        if ($state -eq 'updated' -and $Action -eq 'Install') { throw "$name changed in a Steam update; this release cannot patch it. Wait for an updated Thai release." }
+        $lock = [IO.File]::Open($Plan.Lock, [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
+        if ($lock.Length -ne 0) { throw 'Unknown lock content; refusing ownership.' }
+        if ((Get-Sha $target) -cne $targetSha) { throw 'Target changed before operation lock.' }
+        if ($state -eq 'updated') {
+            # Steam replaced the patched file in a new build; only the verified backup is ours to remove.
+            if (!$backupExists) { return 'Steam already replaced the patched file. Nothing to remove.' }
+            Assert-File $backup $member.original; [IO.File]::Delete($backup)
+            return 'Steam already replaced the patched file. Removed the Thai backup; game files are untouched.'
+        }
+        # An interrupted stage is ours only when its complete bytes match a pinned identity.
+        foreach ($temporary in @($stage,$backupStage)) {
+            if (Test-Path -LiteralPath $temporary) {
+                $temporarySha = Get-Sha $temporary
+                if ($temporarySha -cne $member.original.sha256 -and ($temporary -cne $stage -or $temporarySha -cne $member.output.sha256)) { throw 'Unknown/partial recovery stage; preserve for manual inspection.' }
+                [IO.File]::Delete($temporary)
+            }
+        }
+        if ($state -ne 'original' -and !$backupExists) {
+            if (!$Plan.OriginalBackup) { throw 'Patched state requires a verified original backup.' }
+            Assert-File $Plan.OriginalBackup $member.original
+        }
+        if ($Action -eq 'Uninstall' -and $state -eq 'original') { return 'Already original.' }
+        if (!$backupExists) {
+            $source = if ($state -eq 'original') { $target } else { $Plan.OriginalBackup }
+            $ownBackupStage = $true
+            [IO.File]::Copy($source, $backupStage, $false)
+            Assert-File $backupStage $member.original
+            [IO.File]::Move($backupStage, $backup)
+            $ownBackupStage = $false
+        }
+        $held += Open-Shared $backup
+        Assert-File $backup $member.original
+        if ($Action -eq 'Install' -and $state -eq 'patched') { return 'Already installed.' }
+        $ownStage = $true
+        if ($Action -eq 'Install') { Expand-Delta $backup $stage $member $Plan.PatchPath; $expected = $member.output }
+        else { [IO.File]::Copy($backup, $stage, $false); $expected = $member.original }
+        Assert-File $stage $expected
+        Assert-GameStopped
+        if ((Get-Sha $target) -cne $targetSha) { throw 'Target changed during operation.' }
+        foreach ($file in $support) {
+            if ($file.seen -and (Get-Sha $file.full) -cne $file.seen) { throw "Game file changed during operation: $($file.path)" }
+        }
+        Assert-File $backup $member.original
+        [IO.File]::Replace($stage, $target, [NullString]::Value)
+        $ownStage = $false
+        Assert-File $target $expected
+        return "$Action complete. SHA256=$($expected.sha256)$($Plan.Suffix)"
+    } finally {
+        if ($ownStage -and [IO.File]::Exists($stage)) { [IO.File]::Delete($stage) }
+        if ($ownBackupStage -and [IO.File]::Exists($backupStage)) { [IO.File]::Delete($backupStage) }
+        foreach ($handle in $held) { $handle.Dispose() }
+        if ($lock) { $lock.Dispose() }
+    }
+}
 
-$lock = $null; $stage = $null; $backupStage = $null; $dllGuard = $null
 try {
-    $manifest = Read-Json (Join-Path $PSScriptRoot 'manifest.json')
+    $manifestPath = Join-Path $PSScriptRoot 'manifest.json'
+    # Every identity the package may claim is pinned below; the manifest hash binds the rest, so a package cannot widen them.
+    if (!(Test-Path -LiteralPath $manifestPath -PathType Leaf) -or (Get-Sha $manifestPath) -cne '15caf48819f06fb50f9765000c524e904366049864856d88ba983351c7fa01ac') { throw 'Package manifest differs from the installer pin.' }
+    $manifest = Read-Json $manifestPath
     Assert-Keys $manifest @('schema','buildid','appid','profile','mode','target','dll_path','asset','original_dll','test_only','runtime_proof','runtime_proof_source','static_verification','release_check','fonts')
     $member = $manifest.asset
     Assert-Keys $member @('original','output','patch')
@@ -142,13 +299,15 @@ try {
         Assert-PositiveInteger $record.size $maximumAssetBytes
     }
     Assert-PositiveInteger $member.patch.operations 1000000
+    if ($member.output.sha256 -cne '5c142a4f4a293dddcb9a19be01eda7c8c0301493c6e560fbaef215ade9cc7cfc' -or $member.output.size -ne 121035428 -or
+        $member.patch.sha256 -cne '1d6678234cf6727c225353ef31ae61e8d81d92d82554b9c3197e986aabe3ff51' -or $member.patch.size -ne 3229247 -or
+        $member.patch.operations -ne 11) { throw 'Package output or patch identity differs from the installer pins.' }
     if ($member.patch.size -lt 29 -or $member.patch.operations -gt [Math]::Floor(($member.patch.size - 12) / 17)) {
         throw 'Invalid operation count/patch size.'
     }
     if ($manifest.test_only) {
         if (!$AllowTestPackage -or $manifest.profile -cne 'synthetic-fixture' -or
             $member.original.sha256 -cne '2e2489566f66ca46e96548a3f159d9752ebb31a8cfa613b9753894fd7da560e5' -or $member.original.size -ne 528 -or
-            $member.output.sha256 -cne '016017d0325cee76be11b1d2518a34787e132a8a22a42f13c7b139a19e0a7724' -or $member.output.size -ne 493 -or
             $manifest.original_dll.sha256 -cne '6b4e935cf89342d785fb5873a99feca4bac88aacafef43f4704671fff4a04492' -or $manifest.original_dll.size -ne 200 -or
             $null -ne $manifest.runtime_proof -or $null -ne $manifest.runtime_proof_source -or
             $null -ne $manifest.static_verification -or $null -ne $manifest.release_check) { throw 'Unsupported synthetic fixture profile.' }
@@ -193,104 +352,21 @@ try {
     }
     $patchPath = Join-Path $PSScriptRoot 'resources.cbd'
     Assert-File $patchPath $member.patch
-    if (!$GameRoot) {
-        $steam = (Get-ItemProperty -LiteralPath 'HKCU:\Software\Valve\Steam' -ErrorAction SilentlyContinue).SteamPath
-        $candidates = @()
-        if ($steam) {
-            $libraries = @($steam)
-            $libraryFile = Join-Path $steam 'steamapps/libraryfolders.vdf'
-            if (Test-Path -LiteralPath $libraryFile) {
-                foreach ($match in [regex]::Matches([IO.File]::ReadAllText($libraryFile), '"path"\s+"([^"]+)"')) {
-                    $libraries += $match.Groups[1].Value.Replace('\\','\')
-                }
-            }
-            foreach ($library in ($libraries | Select-Object -Unique)) {
-                $candidate = Join-Path $library 'steamapps/common/Chained Beasts'
-                if (Test-Path -LiteralPath (Join-Path $candidate 'ChainedBeasts_Data/resources.assets')) { $candidates += $candidate }
-            }
-        }
-        if ($candidates.Count -ne 1) { throw 'Specify -GameRoot with the Chained Beasts folder (Steam > Manage > Browse local files).' }
-        $GameRoot = $candidates[0]
-    }
+    if (!$GameRoot) { $GameRoot = Find-SteamGame }
     $GameRoot = [IO.Path]::GetFullPath($GameRoot).TrimEnd([char[]]@('\','/'))
-    $target = Join-Path $GameRoot 'ChainedBeasts_Data/resources.assets'
-    $dllPath = Join-Path $GameRoot 'GameAssembly.dll'
-    $backup = Join-Path $GameRoot 'ChainedBeasts_Data/.cb-thai-en-original-26152147.bak'
-    $lockPath = Join-Path $GameRoot 'ChainedBeasts_Data/.cb-thai.lock'
-    foreach ($path in @($target,$backup,$lockPath,$dllPath)) { Assert-SafePath $path }
-    if (!(Test-Path -LiteralPath $target -PathType Leaf)) { throw 'Game target file missing.' }
-    # The delta and backup are bound to file hashes; the Steam build label alone only warns.
-    $library = [IO.Directory]::GetParent($GameRoot)
-    $acf = if ($library -and $library.Parent) { Join-Path $library.Parent.FullName 'appmanifest_3569420.acf' } else { $null }
-    $buildMatch = if ($acf -and (Test-Path -LiteralPath $acf -PathType Leaf)) { [regex]::Match([IO.File]::ReadAllText($acf), '"buildid"\s+"(\d+)"') } else { $null }
-    $buildChanged = $buildMatch -and $buildMatch.Success -and $buildMatch.Groups[1].Value -ne $manifest.buildid
-    if (!$buildMatch -or !$buildMatch.Success -or $buildChanged) {
-        Write-Warning "Steam build is not the tested build $($manifest.buildid). Continuing with file hash checks."
-    }
+    Assert-SafePath $GameRoot
     Assert-GameStopped
     if ($manifest.test_only -and ((Test-Path -LiteralPath (Join-Path $GameRoot 'ChainedBeasts.exe')) -or
         ![IO.File]::Exists((Join-Path $GameRoot '.cb-synthetic-fixture')) -or
         [IO.File]::ReadAllText((Join-Path $GameRoot '.cb-synthetic-fixture')) -cne 'cb-replace-en-synthetic-v1')) { throw 'Synthetic fixture root required without game executable.' }
-    $dllGuard = [IO.File]::Open($dllPath, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
-    $dllSha = Get-Sha $dllPath
-    $dllTested = $dllSha -ceq $manifest.original_dll.sha256 -and (Get-Item -LiteralPath $dllPath).Length -eq $manifest.original_dll.size
-    if (!$dllTested -and $Action -eq 'Install') { Write-Warning 'GameAssembly.dll differs from the tested build. Thai text may misbehave; run Uninstall if it does.' }
-    $targetSha = Get-Sha $target
-    if ($targetSha -eq $member.original.sha256) { $state = 'original' }
-    elseif ($targetSha -eq $member.output.sha256) { $state = 'patched' }
-    else { $state = 'updated' }
-    $backupExists = Test-Path -LiteralPath $backup
-    if ($backupExists) { Assert-Original $backup }
-    if ($Action -eq 'Status') { Write-Output "State=$state; backup=$backupExists; tested_dll=$dllTested; build=$($manifest.buildid)"; exit 0 }
-    if ($state -eq 'updated' -and !$buildChanged) { throw 'resources.assets is unknown or modified, and Steam does not report a newer build. The Thai backup is kept. Run Steam > Verify integrity of game files, then try again.' }
-    if ($state -eq 'updated' -and $Action -eq 'Install') { throw 'resources.assets changed in a Steam update; this release cannot patch it. Wait for an updated Thai release.' }
-    $lock = [IO.File]::Open($lockPath, [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
-    if ((Get-Sha $target) -cne $targetSha) { throw 'Target changed before operation lock.' }
-    if ($state -eq 'updated') {
-        # Steam replaced the patched file in a new build; only our verified backup remains to remove.
-        if (!$backupExists) { Write-Output 'Steam already replaced the patched file. Nothing to remove.'; exit 0 }
-        Assert-Original $backup; [IO.File]::Delete($backup)
-        Write-Output 'Steam already replaced the patched file. Removed the Thai backup; game files are untouched.'; exit 0
-    }
-    if ($state -ne 'original' -and !$backupExists) {
-        if (!$OriginalBackup) { throw 'Patched state requires a verified original backup (-OriginalBackup).' }
-        Assert-SafePath $OriginalBackup
-        Assert-Original $OriginalBackup
-    }
-    if ($Action -eq 'Uninstall' -and $state -eq 'original') { Write-Output 'Already original.'; exit 0 }
-    if (!$backupExists) {
-        $backupSource = if ($state -eq 'original') { $target } else { $OriginalBackup }
-        $backupStage = $backup + '.' + [guid]::NewGuid().ToString('N') + '.tmp'
-        [IO.File]::Copy($backupSource, $backupStage, $false)
-        Assert-Original $backupStage
-        [IO.File]::Move($backupStage, $backup)
-        $backupStage = $null
-    }
-    if ($Action -eq 'Install' -and $state -eq 'patched') { Write-Output 'Already installed.'; exit 0 }
-    $stage = $target + '.cb-thai-' + [guid]::NewGuid().ToString('N') + '.tmp'
-    if ($Action -eq 'Install') {
-        Expand-Delta $backup $stage
-        $expected = $member.output.sha256
-    } else {
-        [IO.File]::Copy($backup, $stage, $false)
-        $expected = $member.original.sha256
-    }
-    if ((Get-Sha $stage) -ne $expected) { throw 'Reconstructed output SHA-256 mismatch.' }
-    Assert-GameStopped
-    if ((Get-Sha $target) -ne $targetSha) { throw 'Target changed during operation.' }
-    Assert-Original $backup
-    if ((Get-Sha $dllPath) -cne $dllSha) { throw 'GameAssembly.dll changed during operation.' }
-    [IO.File]::Replace($stage, $target, [NullString]::Value)
-    $stage = $null
-    if ((Get-Sha $target) -ne $expected) { throw 'Installed file SHA-256 mismatch.' }
-    Write-Output "$Action complete. SHA256=$expected"
+    $data = Join-Path $GameRoot 'ChainedBeasts_Data'
+    Write-Output (Invoke-DeltaInstall @{
+        Target = Join-Path $data 'resources.assets'; Backup = Join-Path $data '.cb-thai-en-original-26152147.bak'
+        Stage = Join-Path $data '.cb-thai-en-stage.tmp'; BackupStage = Join-Path $data '.cb-thai-en-backup.tmp'; Lock = Join-Path $data '.cb-thai.lock'
+        Member = $member; Previous = @(); PatchPath = $patchPath; OriginalBackup = $OriginalBackup; Suffix = ''
+        Support = @(@{path = 'GameAssembly.dll'; identity = $manifest.original_dll})
+    })
 } catch {
     Write-Error -ErrorAction Continue $_
     exit 1
-} finally {
-    foreach ($temporary in @($stage,$backupStage)) {
-        if ($temporary -and [IO.File]::Exists($temporary)) { [IO.File]::Delete($temporary) }
-    }
-    if ($lock) { $lock.Dispose() }
-    if ($dllGuard) { $dllGuard.Dispose() }
 }

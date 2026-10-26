@@ -2,15 +2,15 @@
 
 [![Chained Beasts](https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3569420/be237edbd1bdbcf361d7b315d70e89fea3b5262a/header.jpg?t=1792711697)](https://store.steampowered.com/app/3569420/Chained_Beasts/)
 
-ม็อดภาษาไทยสำหรับ **Chained Beasts บน Steam Windows build 26152147** เวอร์ชันม็อด 1.0.1
+ม็อดภาษาไทยสำหรับ **Chained Beasts บน Steam Windows build 26152147** เวอร์ชันม็อด 1.0.2
 
 A Thai translation mod for Chained Beasts on Steam Windows, with Thai fonts and installation and uninstall instructions.
 
-## [ดาวน์โหลดม็อดภาษาไทย (.zip)](https://github.com/j4cke7/chained-beasts-thai/releases/download/v1.0.1-build26152147/Chained-Beasts-Thai-replace-en-26152147.zip)
+## [ดาวน์โหลดม็อดภาษาไทย (.zip)](https://github.com/j4cke7/chained-beasts-thai/releases/download/v1.0.2-build26152147/Chained-Beasts-Thai-replace-en-26152147.zip)
 
-[รายละเอียดรุ่น](https://github.com/j4cke7/chained-beasts-thai/releases/tag/v1.0.1-build26152147) · [ไฟล์ตรวจสอบ SHA-256](https://github.com/j4cke7/chained-beasts-thai/releases/download/v1.0.1-build26152147/Chained-Beasts-Thai-replace-en-26152147.zip.sha256)
+[รายละเอียดรุ่น](https://github.com/j4cke7/chained-beasts-thai/releases/tag/v1.0.2-build26152147) · [ไฟล์ตรวจสอบ SHA-256](https://github.com/j4cke7/chained-beasts-thai/releases/download/v1.0.2-build26152147/Chained-Beasts-Thai-replace-en-26152147.zip.sha256)
 
-ดาวน์โหลด ZIP จากลิงก์ข้างบนเพื่อใช้งานม็อด ขนาดไฟล์ 961,705 ไบต์ หรือประมาณ 939 KiB
+ดาวน์โหลด ZIP จากลิงก์ข้างบนเพื่อใช้งานม็อด ขนาดไฟล์ 957,451 ไบต์ หรือประมาณ 935 KiB
 
 ม็อดใช้แทนภาษา English ในเกม ภาษาอื่นยังเลือกได้ตามเดิม ข้อความที่ยังไม่ได้แปลจะแสดงเป็นภาษาอังกฤษ ฟอนต์ภาษาไทยรวมอยู่ในชุดม็อดแล้ว ไม่ต้องติดตั้งฟอนต์เพิ่ม
 
@@ -58,7 +58,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Patch.ps1 -Action Inst
 SHA-256 ของ `Chained-Beasts-Thai-replace-en-26152147.zip` คือ
 
 ```text
-dfedc63af3d36f6668bfe5036ad70d6314e7503031f33d8643d2b8b188537068
+2fcf116bec21020b357bf2420cf4b372b9639a7414c58e5d8dacf13fd28eb755
 ```
 
 ใน PowerShell ใช้คำสั่งนี้ โดยเปลี่ยนพาธให้ตรงกับไฟล์ที่ดาวน์โหลด แล้วเทียบค่า `Hash` กับค่าด้านบน
