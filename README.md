@@ -2,15 +2,15 @@
 
 [![Chained Beasts](https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3569420/be237edbd1bdbcf361d7b315d70e89fea3b5262a/header.jpg?t=1792711697)](https://store.steampowered.com/app/3569420/Chained_Beasts/)
 
-ม็อดภาษาไทยสำหรับ **Chained Beasts บน Steam Windows build 26152147** เวอร์ชันม็อด 1.0.0
+ม็อดภาษาไทยสำหรับ **Chained Beasts บน Steam Windows build 26152147** เวอร์ชันม็อด 1.0.1
 
 A Thai translation mod for Chained Beasts on Steam Windows, with Thai fonts and installation and uninstall instructions.
 
-## [ดาวน์โหลดม็อดภาษาไทย (.zip)](https://github.com/j4cke7/chained-beasts-thai/releases/download/v1.0.0-build26152147/Chained-Beasts-Thai-replace-en-26152147.zip)
+## [ดาวน์โหลดม็อดภาษาไทย (.zip)](https://github.com/j4cke7/chained-beasts-thai/releases/download/v1.0.1-build26152147/Chained-Beasts-Thai-replace-en-26152147.zip)
 
-[รายละเอียดรุ่น](https://github.com/j4cke7/chained-beasts-thai/releases/tag/v1.0.0-build26152147) · [ไฟล์ตรวจสอบ SHA-256](https://github.com/j4cke7/chained-beasts-thai/releases/download/v1.0.0-build26152147/Chained-Beasts-Thai-replace-en-26152147.zip.sha256)
+[รายละเอียดรุ่น](https://github.com/j4cke7/chained-beasts-thai/releases/tag/v1.0.1-build26152147) · [ไฟล์ตรวจสอบ SHA-256](https://github.com/j4cke7/chained-beasts-thai/releases/download/v1.0.1-build26152147/Chained-Beasts-Thai-replace-en-26152147.zip.sha256)
 
-ดาวน์โหลด ZIP จากลิงก์ข้างบนเพื่อใช้งานม็อด ขนาดไฟล์ 955,061 ไบต์ หรือประมาณ 933 KiB
+ดาวน์โหลด ZIP จากลิงก์ข้างบนเพื่อใช้งานม็อด ขนาดไฟล์ 961,705 ไบต์ หรือประมาณ 939 KiB
 
 ม็อดใช้แทนภาษา English ในเกม ภาษาอื่นยังเลือกได้ตามเดิม ข้อความที่ยังไม่ได้แปลจะแสดงเป็นภาษาอังกฤษ ฟอนต์ภาษาไทยรวมอยู่ในชุดม็อดแล้ว ไม่ต้องติดตั้งฟอนต์เพิ่ม
 
@@ -35,10 +35,10 @@ A Thai translation mod for Chained Beasts on Steam Windows, with Thai fonts and 
 
 - ตรวจว่าแตกไฟล์ ZIP ครบแล้วและปิดเกมอยู่
 - หากการติดตั้งถูกขัดจังหวะ ให้ปิดเกมแล้วเรียก `Install.cmd` อีกครั้ง
-- หากขึ้นว่าไม่รองรับรุ่นเกม ให้หยุดติดตั้งและใช้ม็อดที่ตรงกับรุ่นเกม อย่าฝืนติดตั้งข้ามการตรวจรุ่น
+- หากขึ้นคำเตือนว่ารุ่นเกมไม่ตรง ตัวติดตั้งจะติดตั้งต่อเมื่อไฟล์ที่ม็อดแก้ยังตรงกับต้นฉบับ หากข้อความแสดงผิดปกติ ให้ถอนด้วย `Uninstall.cmd`
 - หากแจ้งว่าไฟล์เกมถูกแก้ไขหรือเสียหาย ให้คืนไฟล์ต้นฉบับก่อน ใน Steam คลิกขวาที่เกม แล้วเลือก **Properties > Installed Files > Verify integrity of game files** การตรวจนี้อาจคืนไฟล์ที่ม็อดอื่นแก้ไว้เป็นต้นฉบับด้วย
 
-เมื่อ Steam อัปเดตเกม ม็อดอาจหายหรือใช้ต่อไม่ได้ ให้รอม็อดที่รองรับเกมรุ่นนั้น ชุดนี้รองรับเฉพาะ build 26152147
+ชุดนี้ทดสอบกับ build 26152147 หาก Steam อัปเดตไฟล์ข้อมูลเกมแล้ว ม็อดรุ่นนี้จะติดตั้งไม่ได้ ให้รอม็อดรุ่นใหม่ ส่วน `Uninstall.cmd` ยังใช้ได้ และจะลบเฉพาะไฟล์สำรองของม็อด ไม่แตะไฟล์เกมรุ่นใหม่
 
 ### เมื่อตัวติดตั้งหาโฟลเดอร์เกมไม่พบ
 
@@ -58,7 +58,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Patch.ps1 -Action Inst
 SHA-256 ของ `Chained-Beasts-Thai-replace-en-26152147.zip` คือ
 
 ```text
-1476bd086748a1a428e4fe2587c13be656c1a3a9246954345b6f79c2bbe1fbaf
+dfedc63af3d36f6668bfe5036ad70d6314e7503031f33d8643d2b8b188537068
 ```
 
 ใน PowerShell ใช้คำสั่งนี้ โดยเปลี่ยนพาธให้ตรงกับไฟล์ที่ดาวน์โหลด แล้วเทียบค่า `Hash` กับค่าด้านบน

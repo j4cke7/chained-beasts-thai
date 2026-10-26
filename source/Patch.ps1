@@ -219,25 +219,39 @@ try {
     $lockPath = Join-Path $GameRoot 'ChainedBeasts_Data/.cb-thai.lock'
     foreach ($path in @($target,$backup,$lockPath,$dllPath)) { Assert-SafePath $path }
     if (!(Test-Path -LiteralPath $target -PathType Leaf)) { throw 'Game target file missing.' }
-    $acf = Join-Path ([IO.Directory]::GetParent($GameRoot).Parent.FullName) 'appmanifest_3569420.acf'
-    if (!(Test-Path -LiteralPath $acf -PathType Leaf)) { throw 'Steam build manifest missing.' }
-    $buildMatch = [regex]::Match([IO.File]::ReadAllText($acf), '"buildid"\s+"(\d+)"')
-    if (!$buildMatch.Success -or $buildMatch.Groups[1].Value -ne $manifest.buildid) { throw 'Unsupported Steam build.' }
+    # The delta and backup are bound to file hashes; the Steam build label alone only warns.
+    $library = [IO.Directory]::GetParent($GameRoot)
+    $acf = if ($library -and $library.Parent) { Join-Path $library.Parent.FullName 'appmanifest_3569420.acf' } else { $null }
+    $buildMatch = if ($acf -and (Test-Path -LiteralPath $acf -PathType Leaf)) { [regex]::Match([IO.File]::ReadAllText($acf), '"buildid"\s+"(\d+)"') } else { $null }
+    $buildChanged = $buildMatch -and $buildMatch.Success -and $buildMatch.Groups[1].Value -ne $manifest.buildid
+    if (!$buildMatch -or !$buildMatch.Success -or $buildChanged) {
+        Write-Warning "Steam build is not the tested build $($manifest.buildid). Continuing with file hash checks."
+    }
     Assert-GameStopped
     if ($manifest.test_only -and ((Test-Path -LiteralPath (Join-Path $GameRoot 'ChainedBeasts.exe')) -or
         ![IO.File]::Exists((Join-Path $GameRoot '.cb-synthetic-fixture')) -or
         [IO.File]::ReadAllText((Join-Path $GameRoot '.cb-synthetic-fixture')) -cne 'cb-replace-en-synthetic-v1')) { throw 'Synthetic fixture root required without game executable.' }
     $dllGuard = [IO.File]::Open($dllPath, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
-    Assert-File $dllPath $manifest.original_dll
+    $dllSha = Get-Sha $dllPath
+    $dllTested = $dllSha -ceq $manifest.original_dll.sha256 -and (Get-Item -LiteralPath $dllPath).Length -eq $manifest.original_dll.size
+    if (!$dllTested -and $Action -eq 'Install') { Write-Warning 'GameAssembly.dll differs from the tested build. Thai text may misbehave; run Uninstall if it does.' }
     $targetSha = Get-Sha $target
     if ($targetSha -eq $member.original.sha256) { $state = 'original' }
     elseif ($targetSha -eq $member.output.sha256) { $state = 'patched' }
-    else { throw 'Foreign or corrupt game target. Restore the supported original through Steam first.' }
+    else { $state = 'updated' }
     $backupExists = Test-Path -LiteralPath $backup
     if ($backupExists) { Assert-Original $backup }
-    if ($Action -eq 'Status') { Write-Output "State=$state; backup=$backupExists; build=$($manifest.buildid)"; exit 0 }
+    if ($Action -eq 'Status') { Write-Output "State=$state; backup=$backupExists; tested_dll=$dllTested; build=$($manifest.buildid)"; exit 0 }
+    if ($state -eq 'updated' -and !$buildChanged) { throw 'resources.assets is unknown or modified, and Steam does not report a newer build. The Thai backup is kept. Run Steam > Verify integrity of game files, then try again.' }
+    if ($state -eq 'updated' -and $Action -eq 'Install') { throw 'resources.assets changed in a Steam update; this release cannot patch it. Wait for an updated Thai release.' }
     $lock = [IO.File]::Open($lockPath, [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
     if ((Get-Sha $target) -cne $targetSha) { throw 'Target changed before operation lock.' }
+    if ($state -eq 'updated') {
+        # Steam replaced the patched file in a new build; only our verified backup remains to remove.
+        if (!$backupExists) { Write-Output 'Steam already replaced the patched file. Nothing to remove.'; exit 0 }
+        Assert-Original $backup; [IO.File]::Delete($backup)
+        Write-Output 'Steam already replaced the patched file. Removed the Thai backup; game files are untouched.'; exit 0
+    }
     if ($state -ne 'original' -and !$backupExists) {
         if (!$OriginalBackup) { throw 'Patched state requires a verified original backup (-OriginalBackup).' }
         Assert-SafePath $OriginalBackup
@@ -265,7 +279,7 @@ try {
     Assert-GameStopped
     if ((Get-Sha $target) -ne $targetSha) { throw 'Target changed during operation.' }
     Assert-Original $backup
-    Assert-File $dllPath $manifest.original_dll
+    if ((Get-Sha $dllPath) -cne $dllSha) { throw 'GameAssembly.dll changed during operation.' }
     [IO.File]::Replace($stage, $target, [NullString]::Value)
     $stage = $null
     if ((Get-Sha $target) -ne $expected) { throw 'Installed file SHA-256 mismatch.' }
