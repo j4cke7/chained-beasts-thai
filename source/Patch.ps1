@@ -123,17 +123,73 @@ function Find-SteamGame {
     # Install.cmd and Uninstall.cmd set THAI_MOD_PICK, so a player picks the folder instead of typing a PowerShell command;
     # a direct or scripted run keeps the error and never waits on a dialog.
     if ($env:THAI_MOD_PICK -eq '1') {
-        $picked = Select-GameFolder
+        $picked = Resolve-PickedPath (Select-GameFolder @(Get-GameGuesses $libraries $games))
         if ($picked) { return $picked }
     }
     throw "Cannot identify one Steam installation. Pass -GameRoot with the $($Game.Title) folder (Steam > Manage > Browse local files)."
 }
-function Select-GameFolder {
+function Get-GameGuesses([string[]]$Libraries, [string[]]$Found) {
+    # Steam's own answers first, then any steamapps\common folder holding the game's exe (a missing or stale appmanifest).
+    $guesses = @($Found)
+    foreach ($library in @($Libraries)) {
+        $common = Join-Path $library 'steamapps\common'
+        foreach ($folder in @(Get-ChildItem -LiteralPath $common -Directory -ErrorAction SilentlyContinue)) {
+            if (Test-Path -LiteralPath (Join-Path $folder.FullName ($Game.Process + '.exe'))) { $guesses += $folder.FullName }
+        }
+    }
+    return @($guesses | Where-Object { $_ } | Select-Object -Unique)
+}
+function Resolve-PickedPath([string]$Text) {
+    # A pasted path may carry quotes or name the exe itself.
+    if (!$Text) { return $null }
+    $path = $Text.Trim().Trim('"').Trim()
+    if (!$path) { return $null }
+    if (Test-Path -LiteralPath $path -PathType Leaf) { $path = [IO.Path]::GetDirectoryName($path) }
+    if ($path.Length -gt 3) { $path = $path.TrimEnd('\') }
+    return $path
+}
+function Select-GameFolder([string[]]$Guesses) {
+    # User 2026-10-28: the folder tree alone was hard to use; a box to paste a path, prefilled with the best guess.
     Add-Type -AssemblyName System.Windows.Forms
-    $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
-    $dialog.Description = "Select the $($Game.Title) game folder. In Steam: right-click the game > Manage > Browse local files."
-    $dialog.ShowNewFolderButton = $false
-    try { if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { return $dialog.SelectedPath } } finally { $dialog.Dispose() }
+    Add-Type -AssemblyName System.Drawing
+    $form = New-Object System.Windows.Forms.Form
+    $form.Text = "$($Game.Title) Thai mod: game folder"
+    $form.ClientSize = New-Object System.Drawing.Size(600, 170)
+    $form.FormBorderStyle = 'FixedDialog'; $form.MaximizeBox = $false; $form.MinimizeBox = $false
+    $form.StartPosition = 'CenterScreen'; $form.TopMost = $true
+    $help = New-Object System.Windows.Forms.Label
+    $help.Text = "Paste or type the $($Game.Title) folder, or click Browse.`nIn Steam: right-click the game > Manage > Browse local files, then copy the address bar."
+    $help.SetBounds(12, 10, 576, 36)
+    $box = New-Object System.Windows.Forms.ComboBox
+    $box.DropDownStyle = 'DropDown'; $box.SetBounds(12, 52, 480, 24)
+    foreach ($guess in @($Guesses)) { [void]$box.Items.Add($guess) }
+    if (@($Guesses).Count -gt 0) { $box.Text = @($Guesses)[0] }
+    $browse = New-Object System.Windows.Forms.Button
+    $browse.Text = 'Browse...'; $browse.SetBounds(500, 51, 88, 26)
+    $status = New-Object System.Windows.Forms.Label
+    $status.SetBounds(12, 84, 576, 20)
+    $update = {
+        $path = Resolve-PickedPath $box.Text
+        if ($path -and (Test-Path -LiteralPath (Join-Path $path ($Game.Process + '.exe')))) { $status.ForeColor = 'DarkGreen'; $status.Text = "Found $($Game.Process).exe in this folder." }
+        else { $status.ForeColor = 'DarkRed'; $status.Text = "$($Game.Process).exe is not in this folder." }
+    }
+    $box.add_TextChanged($update); $box.add_SelectedIndexChanged($update)
+    $browse.add_Click({
+        $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
+        $dialog.Description = "Select the $($Game.Title) game folder."
+        $dialog.ShowNewFolderButton = $false
+        $start = Resolve-PickedPath $box.Text
+        if ($start -and (Test-Path -LiteralPath $start -PathType Container)) { $dialog.SelectedPath = $start }
+        try { if ($dialog.ShowDialog($form) -eq [System.Windows.Forms.DialogResult]::OK) { $box.Text = $dialog.SelectedPath } } finally { $dialog.Dispose() }
+    })
+    $ok = New-Object System.Windows.Forms.Button
+    $ok.Text = 'OK'; $ok.SetBounds(412, 128, 84, 28); $ok.DialogResult = [System.Windows.Forms.DialogResult]::OK
+    $cancel = New-Object System.Windows.Forms.Button
+    $cancel.Text = 'Cancel'; $cancel.SetBounds(504, 128, 84, 28); $cancel.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
+    $form.AcceptButton = $ok; $form.CancelButton = $cancel
+    $form.Controls.AddRange(@($help, $box, $browse, $status, $ok, $cancel))
+    & $update
+    try { if ($form.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { return $box.Text } } finally { $form.Dispose() }
     return $null
 }
 function Read-SteamBuild {
@@ -255,7 +311,8 @@ function Invoke-DeltaInstall($Plan) {
             }
         }
         if ($state -ne 'original' -and !$backupExists) {
-            if (!$Plan.OriginalBackup) { throw 'Patched state requires a verified original backup.' }
+            # User 2026-10-28 met this after a test install made outside the installer; say how to recover.
+            if (!$Plan.OriginalBackup) { throw 'The game file is already modified and this mod has no backup of the original. In Steam: right-click the game > Properties > Installed Files > Verify integrity of game files, then run Install.cmd again.' }
             Assert-File $Plan.OriginalBackup $member.original
         }
         if ($Action -eq 'Uninstall' -and $state -eq 'original') { return 'Already original.' }
