@@ -2,11 +2,11 @@
 
 [![Chained Beasts](https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3569420/be237edbd1bdbcf361d7b315d70e89fea3b5262a/header.jpg?t=1792711697)](https://store.steampowered.com/app/3569420/Chained_Beasts/)
 
-ม็อดภาษาไทยจากแฟนเกม สำหรับ **Chained Beasts บน Steam (Windows) build 26152147** รุ่นม็อด 1.0.6 ใช้แทนภาษา English ในเกม ภาษาอื่นยังเลือกได้
+ม็อดภาษาไทยจากแฟนเกม สำหรับ **Chained Beasts บน Steam (Windows) build 26152147** รุ่นม็อด 1.0.7 ใช้แทนภาษา English ในเกม ภาษาอื่นยังเลือกได้
 
 A fan-made Thai translation for Chained Beasts on Steam (Windows). It replaces the English language slot.
 
-## [ดาวน์โหลดม็อด (.zip, 936 KiB)](https://github.com/j4cke7/chained-beasts-thai/releases/download/v1.0.6-build26152147/Chained-Beasts-Thai-replace-en-26152147-v1.0.6.zip)
+## [ดาวน์โหลดม็อด (.zip, 936 KiB)](https://github.com/j4cke7/chained-beasts-thai/releases/download/v1.0.7-build26152147/Chained-Beasts-Thai-replace-en-26152147-v1.0.7.zip)
 
 ## ติดตั้ง
 
@@ -23,6 +23,6 @@ A fan-made Thai translation for Chained Beasts on Steam (Windows). It replaces t
 
 ---
 
-ตัวติดตั้งเป็นสคริปต์ PowerShell ที่อ่านได้: [Patch.ps1](source/Patch.ps1) · SHA-256 ของ ZIP: `ed6d2892eb7f2ac5b06ed8cdb2f5838c0e3c25dd0c373fd38ad3f67408972e55` · [สัญญาอนุญาตฟอนต์](licenses/) (Chakra Petch, Kanit, Sarabun ใช้ SIL OFL)
+ตัวติดตั้งเป็นสคริปต์ PowerShell ที่อ่านได้: [Patch.ps1](source/Patch.ps1) · SHA-256 ของ ZIP: `887726628adf34cc24ae41e2cafa06a4ef61fa53e171223d893f3dd34cd100d4` · [สัญญาอนุญาตฟอนต์](licenses/) (Chakra Petch, Kanit, Sarabun ใช้ SIL OFL)
 
 ม็อดนี้เป็นงานแปลโดยแฟนเกม ไม่มีส่วนเกี่ยวข้องกับผู้พัฒนาหรือผู้จัดจำหน่าย Chained Beasts
