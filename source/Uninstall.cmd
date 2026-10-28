@@ -1,5 +1,6 @@
 @echo off
+set "THAI_MOD_PICK=1"
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Patch.ps1" -Action Uninstall %*
 set "CB_EXIT=%errorlevel%"
-if not "%CB_EXIT%"=="0" pause
+pause
 exit /b %CB_EXIT%

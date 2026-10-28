@@ -1,7 +1,6 @@
 release-assets/
+.release-notes.md
 *.zip
 *.sqlite*
 *.db
 .env*
-docs/
-.release-notes.md

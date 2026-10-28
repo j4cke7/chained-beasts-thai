@@ -119,8 +119,22 @@ function Find-SteamGame {
             if ($match.Success) { $games += Join-Path (Join-Path $library 'steamapps\common') $match.Groups[1].Value }
         }
     }
-    if ($games.Count -ne 1) { throw "Cannot identify one Steam installation. Pass -GameRoot with the $($Game.Title) folder (Steam > Manage > Browse local files)." }
-    return $games[0]
+    if ($games.Count -eq 1) { return $games[0] }
+    # Install.cmd and Uninstall.cmd set THAI_MOD_PICK, so a player picks the folder instead of typing a PowerShell command;
+    # a direct or scripted run keeps the error and never waits on a dialog.
+    if ($env:THAI_MOD_PICK -eq '1') {
+        $picked = Select-GameFolder
+        if ($picked) { return $picked }
+    }
+    throw "Cannot identify one Steam installation. Pass -GameRoot with the $($Game.Title) folder (Steam > Manage > Browse local files)."
+}
+function Select-GameFolder {
+    Add-Type -AssemblyName System.Windows.Forms
+    $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
+    $dialog.Description = "Select the $($Game.Title) game folder. In Steam: right-click the game > Manage > Browse local files."
+    $dialog.ShowNewFolderButton = $false
+    try { if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { return $dialog.SelectedPath } } finally { $dialog.Dispose() }
+    return $null
 }
 function Read-SteamBuild {
     # User decision 2026-10-26: the Steam build label only warns. File hashes decide what may be patched.
@@ -281,7 +295,7 @@ function Invoke-DeltaInstall($Plan) {
 try {
     $manifestPath = Join-Path $PSScriptRoot 'manifest.json'
     # Every identity the package may claim is pinned below; the manifest hash binds the rest, so a package cannot widen them.
-    if (!(Test-Path -LiteralPath $manifestPath -PathType Leaf) -or (Get-Sha $manifestPath) -cne '15caf48819f06fb50f9765000c524e904366049864856d88ba983351c7fa01ac') { throw 'Package manifest differs from the installer pin.' }
+    if (!(Test-Path -LiteralPath $manifestPath -PathType Leaf) -or (Get-Sha $manifestPath) -cne '361e1b5cbc2d42dd3b11702a8cb58909c7b9e00fcdf6161b605c795720e20de4') { throw 'Package manifest differs from the installer pin.' }
     $manifest = Read-Json $manifestPath
     Assert-Keys $manifest @('schema','buildid','appid','profile','mode','target','dll_path','asset','original_dll','test_only','runtime_proof','runtime_proof_source','static_verification','release_check','fonts')
     $member = $manifest.asset
@@ -299,8 +313,8 @@ try {
         Assert-PositiveInteger $record.size $maximumAssetBytes
     }
     Assert-PositiveInteger $member.patch.operations 1000000
-    if ($member.output.sha256 -cne '5c142a4f4a293dddcb9a19be01eda7c8c0301493c6e560fbaef215ade9cc7cfc' -or $member.output.size -ne 121035428 -or
-        $member.patch.sha256 -cne '1d6678234cf6727c225353ef31ae61e8d81d92d82554b9c3197e986aabe3ff51' -or $member.patch.size -ne 3229247 -or
+    if ($member.output.sha256 -cne 'c882bc713fa5376abd2a3587f7bab07807996f2a3079b7ab205544962872846c' -or $member.output.size -ne 121035252 -or
+        $member.patch.sha256 -cne '6c140d83c20e174ebd4455b7a64b6ac1ce7a7bcd97685709e59c72f033031367' -or $member.patch.size -ne 3229071 -or
         $member.patch.operations -ne 11) { throw 'Package output or patch identity differs from the installer pins.' }
     if ($member.patch.size -lt 29 -or $member.patch.operations -gt [Math]::Floor(($member.patch.size - 12) / 17)) {
         throw 'Invalid operation count/patch size.'
