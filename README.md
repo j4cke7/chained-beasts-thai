@@ -5,15 +5,15 @@
 <p align="center">ม็อดแปลไทยจากแฟนเกม ใช้แทนภาษา English ในเกม ภาษาอื่นยังเลือกได้<br>
 <sub>Fan-made Thai translation mod for Chained Beasts on Steam (Windows). It replaces the English language slot.</sub></p>
 
-<h2 align="center"><a href="https://github.com/j4cke7/chained-beasts-thai/releases/download/v1.0.7-build26152147/Chained-Beasts-Thai-replace-en-26152147-v1.0.7.zip">⬇️ ดาวน์โหลดม็อด (.zip, 936 KiB)</a></h2>
+<h2 align="center"><a href="https://github.com/j4cke7/chained-beasts-thai/releases/download/v1.0.8-build26533809/Chained-Beasts-Thai-replace-en-26533809-v1.0.8.zip">⬇️ ดาวน์โหลดม็อด (.zip, 941 KiB)</a></h2>
 
 <p align="center">
-<b>รุ่น 1.0.7</b> · อัปเดต 28 ต.ค. 2569 · ใช้กับ Steam (Windows) build 26152147<br>
+<b>รุ่น 1.0.8</b> · อัปเดต 10 พ.ย. 2569 · ใช้กับ Steam (Windows) build 26533809<br>
 <sub>ใช้ลิงก์นี้เท่านั้น ปุ่ม Code สีเขียวของ GitHub ไม่ใช่ไฟล์ม็อด</sub>
 </p>
 
 <p align="center">
-<a href="#ติดตั้ง">วิธีติดตั้ง</a> · <a href="https://github.com/j4cke7/chained-beasts-thai/releases/tag/v1.0.7-build26152147">มีอะไรใหม่</a> · <a href="https://store.steampowered.com/app/3569420/Chained_Beasts/">หน้าเกมบน Steam</a> · <a href="https://github.com/j4cke7/chained-beasts-thai/issues">แจ้งปัญหา</a> · <a href="https://github.com/j4cke7">ม็อดเกมอื่น</a>
+<a href="#ติดตั้ง">วิธีติดตั้ง</a> · <a href="https://github.com/j4cke7/chained-beasts-thai/releases/tag/v1.0.8-build26533809">มีอะไรใหม่</a> · <a href="https://store.steampowered.com/app/3569420/Chained_Beasts/">หน้าเกมบน Steam</a> · <a href="https://github.com/j4cke7/chained-beasts-thai/issues">แจ้งปัญหา</a> · <a href="https://github.com/j4cke7">ม็อดเกมอื่น</a>
 </p>
 
 ## ติดตั้ง
@@ -41,7 +41,7 @@
 <summary><b>ตรวจไฟล์และสัญญาอนุญาต</b></summary>
 
 - ตัวติดตั้งเป็นสคริปต์ PowerShell ที่อ่านได้: [Patch.ps1](source/Patch.ps1)
-- SHA-256 ของ ZIP: `887726628adf34cc24ae41e2cafa06a4ef61fa53e171223d893f3dd34cd100d4`
+- SHA-256 ของ ZIP: `b1028ca35812598340dad501be32f601d1a902e31e6578d72009b540c35331a1`
 - [สัญญาอนุญาตฟอนต์](licenses/): Chakra Petch, Kanit, Sarabun ใช้ SIL OFL
 
 </details>

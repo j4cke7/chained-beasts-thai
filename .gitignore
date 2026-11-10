@@ -1,5 +1,7 @@
 release-assets/
 .release-notes.md
+.release-build.json
+.release-provisional.json
 *.zip
 *.sqlite*
 *.db
