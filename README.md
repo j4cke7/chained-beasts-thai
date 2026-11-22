@@ -5,15 +5,20 @@
 <p align="center">ม็อดแปลไทยจากแฟนเกม ใช้แทนภาษา English ในเกม ภาษาอื่นยังเลือกได้<br>
 <sub>Fan-made Thai translation mod for Chained Beasts on Steam (Windows). It replaces the English language slot.</sub></p>
 
-<h2 align="center"><a href="https://github.com/j4cke7/chained-beasts-thai/releases/download/v1.0.8-build26533809/Chained-Beasts-Thai-replace-en-26533809-v1.0.8.zip">⬇️ ดาวน์โหลดม็อด (.zip, 941 KiB)</a></h2>
+## ⬇️ ดาวน์โหลดม็อด
+
+เลือก ZIP ตาม Steam branch ที่ติดตั้งอยู่ (Steam > คลิกขวาที่เกม > Properties > Betas) ตัวติดตั้งไม่ยอมลงบน build อื่น
+
+- <a href="https://github.com/j4cke7/chained-beasts-thai/releases/download/v1.0.9-build26805118/Chained-Beasts-Thai-replace-en-26805118-v1.0.9.zip">Chained-Beasts-Thai-replace-en-26805118-v1.0.9.zip</a> (1.0 MiB) สำหรับ Steam branch <code>beta</code> build 26805118
+- <a href="https://github.com/j4cke7/chained-beasts-thai/releases/download/v1.0.9-build26805118/Chained-Beasts-Thai-replace-en-26775394-v1.0.9.zip">Chained-Beasts-Thai-replace-en-26775394-v1.0.9.zip</a> (941 KiB) สำหรับ Steam branch <code>public</code> build 26775394
 
 <p align="center">
-<b>รุ่น 1.0.8</b> · อัปเดต 10 พ.ย. 2569 · ใช้กับ Steam (Windows) build 26533809<br>
+<b>รุ่น 1.0.9</b> · อัปเดต 22 พ.ย. 2569 · ใช้กับ Steam (Windows) build 26805118<br>
 <sub>ใช้ลิงก์นี้เท่านั้น ปุ่ม Code สีเขียวของ GitHub ไม่ใช่ไฟล์ม็อด</sub>
 </p>
 
 <p align="center">
-<a href="#ติดตั้ง">วิธีติดตั้ง</a> · <a href="https://github.com/j4cke7/chained-beasts-thai/releases/tag/v1.0.8-build26533809">มีอะไรใหม่</a> · <a href="https://store.steampowered.com/app/3569420/Chained_Beasts/">หน้าเกมบน Steam</a> · <a href="https://github.com/j4cke7/chained-beasts-thai/issues">แจ้งปัญหา</a> · <a href="https://github.com/j4cke7">ม็อดเกมอื่น</a>
+<a href="#ติดตั้ง">วิธีติดตั้ง</a> · <a href="https://github.com/j4cke7/chained-beasts-thai/releases/tag/v1.0.9-build26805118">มีอะไรใหม่</a> · <a href="https://store.steampowered.com/app/3569420/Chained_Beasts/">หน้าเกมบน Steam</a> · <a href="https://github.com/j4cke7/chained-beasts-thai/issues">แจ้งปัญหา</a> · <a href="https://github.com/j4cke7">ม็อดเกมอื่น</a>
 </p>
 
 ## ติดตั้ง
@@ -41,7 +46,8 @@
 <summary><b>ตรวจไฟล์และสัญญาอนุญาต</b></summary>
 
 - ตัวติดตั้งเป็นสคริปต์ PowerShell ที่อ่านได้: [Patch.ps1](source/Patch.ps1)
-- SHA-256 ของ ZIP: `b1028ca35812598340dad501be32f601d1a902e31e6578d72009b540c35331a1`
+- SHA-256 ของ `Chained-Beasts-Thai-replace-en-26805118-v1.0.9.zip`: `d97826e6607651147ab74a348660f1f9d96564a3cd5e03034d03f573e78a923c`
+- SHA-256 ของ `Chained-Beasts-Thai-replace-en-26775394-v1.0.9.zip`: `89c321cc1a5fbfbc6500bb962e637920f5a6e13f815908d4626d2719d1e1f80d`
 - [สัญญาอนุญาตฟอนต์](licenses/): Chakra Petch, Kanit, Sarabun ใช้ SIL OFL
 
 </details>
